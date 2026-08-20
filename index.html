@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#07111f">
+  <meta name="description" content="IA DANIPARCK - archivos y códigos QR">
+  <link rel="manifest" href="manifest.json">
+  <title>IA DANIPARCK</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#050b16;color:#fff}
+    .app{max-width:520px;margin:auto;min-height:100vh;padding:18px 14px 90px;background:linear-gradient(180deg,#071426,#050b16)}
+    header{text-align:center;padding:18px 0 10px}h1{margin:0;font-size:34px;letter-spacing:1px}h1 span{color:#19bfff}
+    .sub{color:#9caee0;margin-top:6px}.card{background:#0d1a2c;border:1px solid #203556;border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 8px 25px #0005}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.btn{border:0;border-radius:15px;padding:16px 10px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;background:#172b47}
+    .btn:active{transform:scale(.98)}.blue{background:#1269d6}.purple{background:#4b25a9}.green{background:#078b73}.orange{background:#b86a0a}.red{background:#9d2942}
+    input[type=file]{display:none}.file{display:flex;align-items:center;gap:12px}.file strong{word-break:break-all}.muted{color:#9ca8bd;font-size:13px}
+    #qr{display:flex;justify-content:center;align-items:center;min-height:40px;margin:12px 0;background:#fff;border-radius:12px;padding:12px}
+    #qr img{max-width:100%}.hide{display:none}.row{display:flex;gap:8px}.row>*{flex:1}
+    video{width:100%;border-radius:14px;background:#000;max-height:360px}.status{padding:10px;border-radius:12px;background:#0a1525;color:#b9c7e7;margin-top:10px}
+    nav{position:fixed;bottom:0;left:0;right:0;background:#07111f;border-top:1px solid #203556;padding:10px;display:flex;justify-content:center;z-index:5}
+    nav button{background:none;border:0;color:#9aa8c1;font-weight:700;padding:8px 20px}
+    nav button.active{color:#22bfff}
+  </style>
+</head>
+<body>
+<div class="app">
+  <header><h1><span>IA</span> DANIPARCK</h1><div class="sub">Archivos inteligentes y QR</div></header>
+
+  <section class="card">
+    <div class="grid">
+      <button class="btn purple" onclick="openScanner()">📷<br>Escanear QR</button>
+      <label class="btn green">📁<br>Subir archivo<input id="fileInput" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"></label>
+      <button class="btn red" onclick="chooseType('.pdf')">📄<br>Subir PDF</button>
+      <button class="btn blue" onclick="chooseType('.doc,.docx')">📝<br>Subir Word</button>
+      <button class="btn green" onclick="chooseType('.xls,.xlsx')">📊<br>Subir Excel</button>
+      <button class="btn orange" onclick="makeQR()">🔳<br>Convertir a QR</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="file"><div style="font-size:30px">📎</div><div><strong id="fileName">Ningún archivo seleccionado</strong><div class="muted" id="fileInfo">Selecciona PDF, Word, Excel o imagen.</div></div></div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn blue" onclick="makeQR()">Generar QR</button>
+      <button class="btn" onclick="downloadQR()">Guardar QR</button>
+    </div>
+    <div id="qr" class="hide"></div>
+    <div id="qrNote" class="muted"></div>
+  </section>
+
+  <section id="scanner" class="card hide">
+    <h3>Escanear QR</h3>
+    <video id="video" playsinline></video>
+    <div class="status" id="scanStatus">Apunta la cámara al código QR.</div>
+    <button class="btn" style="margin-top:10px;width:100%" onclick="closeScanner()">Cerrar cámara</button>
+  </section>
+
+  <section class="card">
+    <h3>🤖 IA DANIPARCK</h3>
+    <p class="muted">Esta versión prepara la gestión de archivos y QR. La conexión a una IA que analice PDF, Word y Excel puede añadirse en la siguiente etapa.</p>
+  </section>
+</div>
+
+<nav><button class="active">⌂ Inicio</button><button onclick="document.getElementById('fileInput').click()">📁 Archivos</button><button onclick="alert('Historial: próximamente')">◷ Historial</button></nav>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script>
+let currentFile=null, currentQR=null, stream=null;
+
+const input=document.getElementById('fileInput');
+input.addEventListener('change',e=>{
+  const f=e.target.files[0]; if(!f)return;
+  currentFile=f;
+  document.getElementById('fileName').textContent=f.name;
+  document.getElementById('fileInfo').textContent=(f.size/1024/1024).toFixed(2)+' MB';
+  document.getElementById('qr').classList.add('hide');
+  document.getElementById('qrNote').textContent='';
+});
+
+function chooseType(ext){
+  input.accept=ext+',image/*';
+  input.click();
+}
+function makeQR(){
+  if(!currentFile){alert('Primero selecciona un archivo.');return;}
+  const qrBox=document.getElementById('qr'); qrBox.innerHTML=''; qrBox.classList.remove('hide');
+  // Demo local: the QR contains a data URL. Very large documents exceed QR capacity.
+  if(currentFile.size>150000){
+    document.getElementById('qrNote').textContent='Este prototipo genera QR para archivos pequeños. Para PDF/Word/Excel grandes se necesita almacenamiento en Internet y el QR contendrá un enlace seguro.';
+    try{
+      new QRCode(qrBox,{text:'IA-DANIPARCK-FILE:'+encodeURIComponent(currentFile.name),width:220,height:220});
+      currentQR=qrBox.querySelector('img');
+    }catch(e){}
+    return;
+  }
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      new QRCode(qrBox,{text:reader.result,width:220,height:220});
+      currentQR=qrBox.querySelector('img');
+      document.getElementById('qrNote').textContent='QR generado. Para compartir archivos grandes, conecta almacenamiento en Internet.';
+    }catch(e){document.getElementById('qrNote').textContent='No se pudo generar el QR.'}
+  };
+  reader.readAsDataURL(currentFile);
+}
+function downloadQR(){
+  const img=document.querySelector('#qr img');
+  if(!img){alert('Primero genera un QR.');return;}
+  const a=document.createElement('a');a.href=img.src;a.download='IA-DANIPARCK-QR.png';a.click();
+}
+async function openScanner(){
+  const box=document.getElementById('scanner'); box.classList.remove('hide');
+  if(!('BarcodeDetector' in window)){document.getElementById('scanStatus').textContent='Tu navegador no permite escaneo QR directo. Puedes usar la cámara/lector QR del teléfono.';return;}
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}}});
+    const video=document.getElementById('video'); video.srcObject=stream; await video.play();
+    const detector=new BarcodeDetector({formats:['qr_code']});
+    const loop=async()=>{
+      if(box.classList.contains('hide'))return;
+      try{
+        const codes=await detector.detect(video);
+        if(codes.length){
+          const v=codes[0].rawValue; document.getElementById('scanStatus').textContent='QR encontrado: '+v;
+          if(/^https?:\/\//i.test(v)) location.href=v;
+          return;
+        }
+      }catch(e){}
+      requestAnimationFrame(loop);
+    }; loop();
+  }catch(e){document.getElementById('scanStatus').textContent='No se pudo abrir la cámara. Revisa el permiso de cámara.'}
+}
+function closeScanner(){
+  document.getElementById('scanner').classList.add('hide');
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
+}
+if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+</script>
+</body>
+</html>
